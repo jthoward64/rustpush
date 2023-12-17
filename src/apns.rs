@@ -7,6 +7,7 @@ use rand::Rng;
 use rustls::sign::Signer;
 use rustls::Certificate;
 use serde::{Deserialize, Serialize};
+use sha1::{Digest, Sha1};
 use std::net::ToSocketAddrs;
 use tokio::io::split;
 use tokio::time::interval;
@@ -155,11 +156,15 @@ impl APNSSubmitter {
     ) -> Result<(), PushError> {
         let rand = rand::thread_rng().gen::<[u8; 4]>();
         let id = id.unwrap_or(&rand);
+
+        let mut hasher = Sha1::new();
+        hasher.update(topic.as_bytes());
+
         self.send_payload(
             0x0A,
             vec![
                 (4, id.to_vec()),
-                (1, sha1(topic.as_bytes()).to_vec()),
+                (1, hasher.finalize().to_vec()),
                 (2, self.token().await),
                 (3, payload.to_vec()),
             ],
